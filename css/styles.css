@@ -1,0 +1,614 @@
+/* ==========================================================================
+   Proiect Grafică pe Calculator
+   Tema: Talking Avatar 3D - Animație Procedurală & LLM Lip-Sync
+   Student: Jipeanu Viorel
+   ========================================================================== */
+
+:root {
+    --bg-main: #090d16;
+    --bg-card: rgba(18, 26, 43, 0.75);
+    --bg-card-border: rgba(56, 189, 248, 0.18);
+    --bg-input: #0f172a;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-cyan: #00f0ff;
+    --accent-blue: #38bdf8;
+    --accent-magenta: #f43f5e;
+    --accent-green: #10b981;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --radius: 10px;
+    --shadow-glow: 0 0 20px rgba(0, 240, 255, 0.15);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+    line-height: 1.5;
+}
+
+/* Structură Generală */
+.app-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* Zona Viewport 3D */
+.viewport-area {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(circle at center, #131c2e 0%, #070a10 100%);
+    overflow: hidden;
+}
+
+#viewport-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    outline: none;
+    cursor: grab;
+}
+
+#viewport-container:active {
+    cursor: grabbing;
+}
+
+#viewport-container.drag-active {
+    border: 3px dashed var(--accent-cyan);
+    background-color: rgba(0, 240, 255, 0.05);
+}
+
+/* HUD Overlay peste Scena 3D */
+.viewport-overlay-top {
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    display: flex;
+    gap: 12px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hud-chip {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--bg-card-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.hud-chip strong {
+    color: var(--accent-cyan);
+}
+
+.hud-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.status-badge.online {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.3);
+}
+
+.status-badge.mock {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.viewport-overlay-bottom {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.viseme-live-indicator {
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-glow);
+    min-width: 200px;
+}
+
+.viseme-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.viseme-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+}
+
+.viseme-group {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.drag-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    background: rgba(15, 23, 42, 0.7);
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+/* Spinner încărcare model */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(9, 13, 22, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    gap: 16px;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(56, 189, 248, 0.2);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Bara Laterală (Sidebar) */
+.sidebar {
+    width: 460px;
+    height: 100vh;
+    background: rgba(12, 17, 29, 0.96);
+    border-left: 1px solid var(--bg-card-border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 20;
+}
+
+.sidebar-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-cyan);
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.sidebar-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+
+.sidebar-header .subtitle {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.student-author-badge {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.student-author-badge strong {
+    color: var(--accent-cyan);
+}
+
+.sidebar-footer {
+    padding: 12px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(8, 11, 18, 0.8);
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Card-uri secțiuni */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.card-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.section-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* Form Controls */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.items-center {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.select-input, .textarea-input {
+    background: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.select-input:focus, .textarea-input:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2);
+}
+
+.textarea-input {
+    resize: vertical;
+    min-height: 56px;
+}
+
+/* Quick Prompts Grid */
+.quick-prompts-label {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.quick-prompts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.quick-prompt-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.quick-prompt-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent-blue);
+    color: #fff;
+}
+
+/* Butoane */
+.button-row {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: #fff;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: rgba(244, 63, 94, 0.18);
+    color: var(--accent-magenta);
+    border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--accent-magenta);
+    color: #fff;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    flex: 1;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-outline:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Stream Box */
+.stream-box-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stream-box-header {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.stream-box {
+    background: #060911;
+    border: 1px solid rgba(0, 240, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+    max-height: 110px;
+    min-height: 50px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+}
+
+.stream-box.speaking {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+/* Slidere și Toggle-uri */
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.slider-badge {
+    background: rgba(0, 240, 255, 0.12);
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.slider-input {
+    width: 100%;
+    accent-color: var(--accent-cyan);
+    cursor: pointer;
+}
+
+.slider-hints {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+    accent-color: var(--accent-cyan);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.toggle-text {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.hint-tag {
+    font-size: 0.7rem;
+    background: rgba(244, 63, 94, 0.15);
+    color: var(--accent-magenta);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Grilă Blendshapes Telemetry */
+.blendshape-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bs-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.bs-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+.bs-value {
+    color: var(--text-muted);
+}
+
+.bs-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.bs-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0ea5e9, #00f0ff);
+    border-radius: 3px;
+    transition: width 0.04s ease-out;
+}
+
+/* Scrollbar personalizat */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .app-layout {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        height: 50vh;
+    }
+    .viewport-area {
+        height: 50vh;
+    }
+}

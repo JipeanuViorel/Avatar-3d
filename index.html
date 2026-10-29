@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talking Avatar 3D | Proiect Grafică pe Calculator - Jipeanu Viorel</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ZONA PRINCIPALĂ 3D VIEWPORT -->
+        <main class="viewport-area">
+            <div id="viewport-container">
+                <!-- Overlay HUD 3D -->
+                <div class="viewport-overlay-top">
+                    <div class="hud-chip">
+                        <span class="hud-dot"></span>
+                        <span>Student: <strong>Jipeanu Viorel</strong></span>
+                    </div>
+                    <div class="hud-chip">
+                        <span>Motor Grafic: <strong>Three.js WebGL (ARKit 52)</strong></span>
+                    </div>
+                    <div class="hud-chip" id="ollama-status-badge">
+                        ● Verificare Ollama...
+                    </div>
+                </div>
+
+                <div class="viewport-overlay-bottom">
+                    <div class="viseme-live-indicator">
+                        <div class="viseme-label">Visemă Activă</div>
+                        <div class="viseme-name" id="current-viseme-badge">REST</div>
+                        <div class="viseme-group" id="current-group-badge">Repaus (Neutral)</div>
+                    </div>
+                    <div class="drag-hint">
+                        💡 Rotește cu click stânga | Zoom cu rotița | Drag & Drop fișier .GLB pe avatar
+                    </div>
+                </div>
+
+                <!-- Overlay de încărcare -->
+                <div id="loading-overlay" class="loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Se încarcă modelul 3D...</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- BARA LATERALĂ DE CONTROL ȘI MONITORIZARE -->
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <div class="title-badge">Proiect Grafică pe Calculator</div>
+                <h1>Talking Avatar 3D</h1>
+                <p class="subtitle">Animație Procedurală & Lip-Sync ghidat de LLM</p>
+                <div class="student-author-badge">Student: <strong>Jipeanu Viorel</strong></div>
+            </header>
+
+            <div class="sidebar-content">
+                <!-- 1. CONFIGURARE & CONTROL LLM -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>1. Flux Text & LLM (Ollama)</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="lang-select">Limbă Fonetică:</label>
+                            <select id="lang-select" class="select-input">
+                                <option value="ro" selected>Română (RegEx Silabic)</option>
+                                <option value="en">Engleză (G2P Rules)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label>Sursă LLM:</label>
+                            <label class="toggle-label">
+                                <input type="checkbox" id="mock-mode-toggle" checked>
+                                <span class="toggle-text">Mod Mock (Offline)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Butoane Prompte Rapide -->
+                    <div class="quick-prompts-label">Prezentare Demonstrativă Oficială:</div>
+                    <div class="quick-prompts-grid">
+                        <button class="quick-prompt-btn" style="grid-column: span 2; font-weight: 600; color: var(--accent-cyan);" data-prompt="Salut! Acesta este proiectul meu de Grafică pe Calculator, realizat de studentul Jipeanu Viorel. Am dezvoltat un sistem procedural de animație în timp real ce combină interpolarea continuă Lerp pe blendshapes ARKit cu analiza fonetică a limbii române.">🎙️ Rostește Prezentarea Oficială (Jipeanu Viorel)</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="prompt-input">Text / Prompt Articulat:</label>
+                        <textarea id="prompt-input" class="textarea-input" rows="2" placeholder="Apăsați 'Generează & Articulează' pentru a porni prezentarea feminină a proiectului..."></textarea>
+                    </div>
+
+                    <div class="button-row">
+                        <button id="send-btn" class="btn btn-primary">
+                            <span>▶ Generează & Articulează</span>
+                        </button>
+                        <button id="stop-btn" class="btn btn-danger" disabled>
+                            <span>⏹ Stop</span>
+                        </button>
+                    </div>
+
+                    <!-- Token Stream Box -->
+                    <div class="stream-box-container">
+                        <div class="stream-box-header">
+                            <span>Stream Tokeni (Live Chunking):</span>
+                        </div>
+                        <div id="token-stream-box" class="stream-box">Așteptare introducere prompt...</div>
+                    </div>
+                </section>
+
+                <!-- 2. PARAMETRI GRAFICĂ & LERPING -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>2. Control Motor Grafic (Lerping)</h2>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="slider-header">
+                            <label for="lerp-speed-slider">Viteză Interpolare (Lerp Speed &lambda;):</label>
+                            <span id="lerp-speed-val" class="slider-badge">16.0</span>
+                        </div>
+                        <input type="range" id="lerp-speed-slider" min="2.0" max="40.0" step="0.5" value="16.0" class="slider-input">
+                        <div class="slider-hints">
+                            <span>Fluid / Organic (Lent)</span>
+                            <span>Standard (16)</span>
+                            <span>Rigid / Rapid</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row items-center">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="lerp-toggle" checked>
+                            <span class="toggle-text">Activează Interpolare LERPING</span>
+                        </label>
+                        <span class="hint-tag" title="Dezactivează pentru a vedea aspectul robotic sacadat!">Comparație A/B</span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="form-group">
+                        <label>Avatar 3D:</label>
+                        <div class="button-row">
+                            <label class="btn btn-secondary file-upload-btn">
+                                <span>📁 Încarcă Ready Player Me (.GLB)</span>
+                                <input type="file" id="avatar-file-input" accept=".glb,.gltf" style="display: none;">
+                            </label>
+                            <button id="reset-avatar-btn" class="btn btn-outline" title="Resetează la capul 3D procedural">
+                                ↺ Reset Procedural
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. MONITOR MATRICE BLENDSHAPES (ARKIT) -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>3. Inspector Blendshapes ARKit în Timp Real</h2>
+                    </div>
+                    <p class="section-desc">Ponderile curente ale deformației faciale calculate la fiecare frame prin formula Lerp:</p>
+
+                    <div id="blendshape-bars" class="blendshape-grid">
+                        <!-- Barele sunt generate dinamic de app.js -->
+                    </div>
+                </section>
+            </div>
+
+            <footer class="sidebar-footer">
+                Proiect Grafică pe Calculator &bull; Student: <strong>Jipeanu Viorel</strong>
+            </footer>
+        </aside>
+    </div>
+
+    <!-- Biblioteci Three.js locale -->
+    <script src="libs/three.min.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <script src="libs/GLTFLoader.js"></script>
+
+    <!-- Module aplicație -->
+    <script src="js/phoneme_viseme.js"></script>
+    <script src="js/llm_stream.js"></script>
+    <script src="js/tts.js"></script>
+    <script src="js/avatar.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
